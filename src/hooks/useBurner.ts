@@ -39,7 +39,7 @@ type BurnerStorage = {
  */
 interface Burner {
     /** argent, braavos, cartridge etc */
-    masterAccount?: AccountInterface;
+    masterAccount?: AccountInterface | Account;
 
     accountClassHash: string;
 }
