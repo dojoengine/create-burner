@@ -166,8 +166,6 @@ export const useBurner = ({ masterAccount, accountClassHash }: Burner) => {
         Storage.set("burners", storage);
         console.log("Burner Created: ", address);
 
-        window.location.reload();
-
         return burner;
     }, [masterAccount]);
 
