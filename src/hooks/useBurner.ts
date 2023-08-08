@@ -5,19 +5,13 @@ import {
     CallData,
     ec,
     hash,
-    Provider,
+    RpcProvider,
     stark,
     TransactionStatus,
 } from "starknet";
 import Storage from "../utils/storage";
 import { BurnerConnector } from "../connectors/burner";
 import { PREFUND_AMOUNT } from "../constants";
-
-const provider = new Provider({
-    sequencer: {
-        baseUrl: 'https://alpha4.starknet.io',
-    }
-});
 
 type BurnerStorage = {
     [address: string]: {
@@ -36,15 +30,20 @@ type BurnerStorage = {
  * 
  * @param accountClassHash - The class hash of the account you want to deploy. 
  *                           This has to be predeployed on the chain you are deploying to.
+ * 
+ * @param provider - The provider you want to use to deploy the burner.
+ * 
  */
 interface Burner {
     /** argent, braavos, cartridge etc */
     masterAccount?: AccountInterface | Account;
 
     accountClassHash: string;
+
+    provider: RpcProvider;
 }
 
-export const useBurner = ({ masterAccount, accountClassHash }: Burner) => {
+export const useBurner = ({ masterAccount, accountClassHash, provider }: Burner) => {
     const [account, setAccount] = useState<Account>();
     const [isDeploying, setIsDeploying] = useState(false);
     const [burnerAccounts, setburnerAccounts] = useState<BurnerConnector[]>([]);
@@ -137,14 +136,24 @@ export const useBurner = ({ masterAccount, accountClassHash }: Burner) => {
             setIsDeploying(false);
         }
 
-        // deploy burner
-        const burner = new Account(provider, address, privateKey);
-
-        const { transaction_hash: deployTx } = await burner.deployAccount({
+        const accountOptions = {
             classHash: accountClassHash,
             constructorCalldata: CallData.compile({ publicKey }),
             addressSalt: publicKey,
-        });
+        }
+
+        // deploy burner
+        const burner = new Account(provider, address, privateKey);
+
+        const accountDeployFee = await account?.estimateAccountDeployFee(accountOptions)
+        const nonce = await account?.getNonce()
+
+        const { transaction_hash: deployTx } = await burner.deployAccount(accountOptions,
+            {
+                nonce,
+                maxFee: accountDeployFee?.suggestedMaxFee // TODO: update
+            }
+        );
 
         console.log("Deploying:", deployTx)
 
@@ -201,11 +210,30 @@ export const useBurner = ({ masterAccount, accountClassHash }: Burner) => {
 
 const prefundAccount = async (address: string, account: AccountInterface) => {
     try {
-        const { transaction_hash } = await account.execute({
-            contractAddress: process.env.NEXT_PUBLIC_ETH_CONTRACT_ADDRESS!,
+
+        const transferOptions = {
+            contractAddress: '0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7',
             entrypoint: "transfer",
             calldata: CallData.compile([address, PREFUND_AMOUNT, "0x0"]),
-        });
+        }
+
+        const nonce = await account?.getNonce()
+
+        const accountDeployFee = await account?.estimateInvokeFee(transferOptions,
+            {
+                nonce,
+                blockIdentifier: 0,
+                skipValidate: false
+            }
+        )
+
+        const { transaction_hash } = await account.execute(transferOptions,
+            undefined,
+            {
+                nonce,
+                maxFee: accountDeployFee.suggestedMaxFee // TODO: update
+            }
+        );
 
         console.log("Prefund Account hash:", transaction_hash);
 
