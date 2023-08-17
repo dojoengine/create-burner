@@ -145,13 +145,13 @@ export const useBurner = ({ masterAccount, accountClassHash, provider }: Burner)
         // deploy burner
         const burner = new Account(provider, address, privateKey);
 
-        const accountDeployFee = await account?.estimateAccountDeployFee(accountOptions)
+        // const accountDeployFee = await account?.estimateAccountDeployFee(accountOptions)
         const nonce = await account?.getNonce()
 
         const { transaction_hash: deployTx } = await burner.deployAccount(accountOptions,
             {
                 nonce,
-                maxFee: accountDeployFee?.suggestedMaxFee // TODO: update
+                maxFee: 0 // TODO: update
             }
         );
 
@@ -217,21 +217,13 @@ const prefundAccount = async (address: string, account: AccountInterface) => {
             calldata: CallData.compile([address, PREFUND_AMOUNT, "0x0"]),
         }
 
-        const nonce = await account?.getNonce()
-
-        const accountDeployFee = await account?.estimateInvokeFee(transferOptions,
-            {
-                nonce,
-                blockIdentifier: 0,
-                skipValidate: false
-            }
-        )
+        const nonce = await account.getNonce()
 
         const { transaction_hash } = await account.execute(transferOptions,
             undefined,
             {
                 nonce,
-                maxFee: accountDeployFee.suggestedMaxFee // TODO: update
+                maxFee: 0
             }
         );
 
