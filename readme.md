@@ -23,12 +23,11 @@
 [tg-badge]: https://img.shields.io/endpoint?color=neon&logo=telegram&label=chat&style=flat-square&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fdojoengine
 [tg-url]: https://t.me/dojoengine
 
-
+> Note: Starknet Burner Accounts are currently in alpha. Expect breaking changes frequently.
 
 ## Starknet Burner Accounts
 
 Simple way to create a burner wallet for Starknet.
-
 
 ### How does it work?
 
@@ -63,5 +62,7 @@ const masterAccount = new Account(provider, ADDRESS, PRIVATE_KEY)
 
 const { create } = useBurner({ 
         masterAccount: masterAccount, 
-        accountClassHash: ACCOUNT_CLASS_HASH });
+        accountClassHash: ACCOUNT_CLASS_HASH,
+        provider: provider
+        });
 ```
