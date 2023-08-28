@@ -23,46 +23,95 @@
 [tg-badge]: https://img.shields.io/endpoint?color=neon&logo=telegram&label=chat&style=flat-square&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fdojoengine
 [tg-url]: https://t.me/dojoengine
 
-> Note: Starknet Burner Accounts are currently in alpha. Expect breaking changes frequently.
-
-## Starknet Burner Accounts
-
-Simple way to create a burner wallet for Starknet.
-
-### How does it work?
-
-Burner wallet is simply a Starknet account that is created on the fly and is funded with some amount of funds. The keypair is stored in local browser storage, which allows for signature free transactions - essential for onchain games.
-
-This library provides a basic hook for creating and managing burner wallets. It is up to the developer to decide how to fund the burner wallet and how to manage the funds.
+> Note: Starknet Burner Accounts are currently in pre-alpha. Expect breaking changes frequently.
 
 > Warning: You should provide your users with warning explaning that these Accounts are not secure and should not be used for storing large amounts of funds. The keypair is stored in local storage and can be exploited by malicious actors.
 
+# Create Starknet Burner Accounts
 
-### Install
+Easily manage, create, and interact with burner accounts on Starknets using this library.
 
-`yarn add @dojoengine/create-burner starknet`
+## Features:
 
-### Create
+- Initialize and manage burner accounts.
+- Abstracts away intricacies related to creating, fetching, and setting active burner accounts.
+- Easily integrate with React apps using the provided hook.
+- Vanilla JS support.
 
-```js
-import { useBurner } from "@dojoengine/create-burner"
-import { Account, Provider } from "starknet"
+## Table of Contents
 
-const provider = new Provider({
-  sequencer: {
-    baseUrl: 'https://alpha4.starknet.io',
-  }
-});
+- [Installation](#installation)
+- [Usage](#usage)
+    - [With React](#with-react)
+    - [Vanilla JavaScript](#vanilla-javascript)
+- [API](#api)
+- [Contribute](#contribute)
+- [License](#license)
 
-const ADDRESS = "0x3ee9e18edc71a6df30ac3aca2e0b02a198fbce19b7480a63a0d71cbd76652e0"
-const PRIVATE_KEY = "0x3ee9e18edc71a6df30ac3aca2e0b02a198fbce19b7480a63a0d71cbd76652e0"
-const ACCOUNT_CLASS_HASH = "0x006280083f8c2a2db9f737320d5e3029b380e0e820fe24b8d312a6a34fdba0cd"
+## Installation
 
-const masterAccount = new Account(provider, ADDRESS, PRIVATE_KEY)
+You can install `create-burner` using yarn, pnpm, or npm:
 
-const { create } = useBurner({ 
-        masterAccount: masterAccount, 
-        accountClassHash: ACCOUNT_CLASS_HASH,
-        provider: provider
-        });
+```bash
+yarn add @dojoengine/create-burner starknet
 ```
+
+### In the wild:
+
+- [dojo-starter-react-app](https://github.com/dojoengine/dojo-starter-react-app)
+
+## Usage
+
+### With React
+
+After installation, you can easily integrate it into your React app:
+
+```tsx
+import { useBurner } from '@dojoengine/create-burner';
+
+const YourComponent = () => {
+    const { get, list, select, create, account } = useBurner(options);
+
+    // Rest of your component
+}
+```
+
+### Vanilla JavaScript
+
+For non-React apps, initialize and manage burners using the `BurnerManager` class:
+
+```typescript
+import { BurnerManager } from '@dojoengine/create-burner';
+
+const manager = new BurnerManager(options);
+manager.init();
+const activeAccount = manager.getActiveAccount();
+```
+
+## API
+
+- **useBurner**: A React hook that provides functionalities like creating burners, selecting them, and more.
+    - `get(address: string)`: Get a burner account based on its address.
+    - `list()`: List all burners.
+    - `select(address: string)`: Set a burner as the active account.
+    - `create()`: Create a new burner.
+    - `account`: The active burner account.
+    - `isDeploying`: A boolean that indicates whether a burner is being deployed.
+    - `listConnectors()`: List all available connectors that can be used with Starknet React.
+
+- **BurnerManager**: A class for vanilla JS that offers methods to manage burner accounts.
+    - `init()`: Initializes the manager.
+    - `getActiveAccount()`: Retrieves the active burner account.
+    - ... (Other methods and their descriptions)
+
+## Contribute
+
+1. Fork the repository.
+2. Create your feature branch (`git checkout -b feature/my-new-feature`).
+3. Commit your changes (`git commit -am 'Add some feature'`).
+4. Push to the branch (`git push origin feature/my-new-feature`).
+5. Open a pull request.
+
+## License
+
+This project is licensed under the MIT License.

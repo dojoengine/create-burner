@@ -1,246 +1,117 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-    Account,
-    AccountInterface,
-    CallData,
-    ec,
-    hash,
-    RpcProvider,
-    stark,
-    TransactionStatus,
-} from "starknet";
-import Storage from "../utils/storage";
-import { BurnerConnector } from "../connectors/burner";
-import { PREFUND_AMOUNT } from "../constants";
-
-type BurnerStorage = {
-    [address: string]: {
-        privateKey: string;
-        publicKey: string;
-        deployTx: string;
-        active: boolean;
-    };
-};
+import { useState, useEffect, useCallback } from "react";
+import { BurnerManager } from "../manager/burnerManager";
+import { Account, AccountInterface, RpcProvider } from "starknet";
+import { Burner } from "../types";
+import { BurnerConnector } from "..";
 
 /**
- * Interface for Burner
- * 
- * @param masterAccount - The Master account is what prefunds the Burner. 
- *                        Pass in an account that has funds.
- * 
- * @param accountClassHash - The class hash of the account you want to deploy. 
- *                           This has to be predeployed on the chain you are deploying to.
- * 
- * @param provider - The provider you want to use to deploy the burner.
- * 
+ * Interface for the options required by the useBurner hook.
  */
-interface Burner {
-    /** argent, braavos, cartridge etc */
+interface UseBurnerOptions {
+    /** 
+     * The Master account is what prefunds the Burner. 
+     * Optional. Pass in an account that has funds if available.
+     */
     masterAccount?: AccountInterface | Account;
 
+    /** 
+     * The class hash of the account you want to deploy.
+     * This has to be predeployed on the chain you are deploying to.
+     */
     accountClassHash: string;
 
+    /** 
+     * The provider you want to use to deploy the burner.
+     */
     provider: RpcProvider;
 }
 
-export const useBurner = ({ masterAccount, accountClassHash, provider }: Burner) => {
-    const [account, setAccount] = useState<Account>();
-    const [isDeploying, setIsDeploying] = useState(false);
-    const [burnerAccounts, setburnerAccounts] = useState<BurnerConnector[]>([]);
+/**
+ * A React hook to manage Burner accounts.
+ * Provides utility methods like get, list, select, and create.
+ * 
+ * @param options - Configuration options required for Burner operations.
+ * @returns An object with utility methods and properties.
+ */
+export const useBurner = (options: UseBurnerOptions) => {
+    // Initialize the BurnerManager with the provided options.
+    const [burnerManager] = useState(new BurnerManager(options));
+    // State to manage the current active account.
+    const [account, setAccount] = useState<Account | null>(null);
 
-    // load burner from storage
+    // On mount, initialize the burner manager and set the active account.
     useEffect(() => {
-        const storage: BurnerStorage = Storage.get("burners");
-        if (storage) {
-            // check one to see if exists, perhaps appchain restarted
-            const firstAddr = Object.keys(storage)[0];
-            masterAccount?.getTransactionReceipt(storage[firstAddr].deployTx).catch(() => {
-                setAccount(undefined);
-                Storage.remove("burners");
-                throw new Error("burners not deployed, chain may have restarted");
-            });
-
-            // set active account
-            for (let address in storage) {
-                if (storage[address].active) {
-                    const burner = new Account(
-                        provider,
-                        address,
-                        storage[address].privateKey,
-                    );
-                    setAccount(burner);
-                    return;
-                }
-            }
-        }
+        burnerManager.init();
+        setAccount(burnerManager.getActiveAccount());
     }, []);
 
-    // list burners
-    const list = useCallback(() => {
-        let storage = Storage.get("burners") || {};
-        return Object.keys(storage).map((address) => {
-            return {
-                address,
-                active: storage[address].active,
-            };
-        });
-    }, [masterAccount]);
+    /**
+     * Lists all the burners available in the storage.
+     * 
+     * @returns An array of Burner accounts.
+     */
+    const list = useCallback((): Burner[] => {
+        return burnerManager.list();
+    }, [options]);
 
-    // select burner
-    const select = useCallback((address: string) => {
-        let storage = Storage.get("burners") || {};
-        if (!storage[address]) {
-            throw new Error("burner not found");
-        }
+    /**
+     * Selects and sets a burner as the active account.
+     * 
+     * @param address - The address of the burner account to set as active.
+     */
+    const select = useCallback((address: string): void => {
+        burnerManager.select(address);
+        setAccount(burnerManager.getActiveAccount());
+    }, [burnerManager, options]);
 
-        for (let addr in storage) {
-            storage[addr].active = false;
-        }
-        storage[address].active = true;
+    /**
+     * Retrieves a burner account based on its address.
+     * 
+     * @param address - The address of the burner account to retrieve.
+     * @returns The Burner account corresponding to the provided address.
+     */
+    const get = useCallback((address: string): Account => {
+        return burnerManager.get(address);
+    }, [options]);
 
-        Storage.set("burners", storage);
-        const burner = new Account(provider, address, storage[address].privateKey);
-        setAccount(burner);
-    }, [masterAccount]);
+    /**
+     * Creates a new burner account and sets it as the active account.
+     * 
+     * @returns A promise that resolves to the newly created Burner account.
+     */
+    const create = useCallback(async (): Promise<Account> => {
+        const newAccount = await burnerManager.create();
+        setAccount(newAccount);
+        return newAccount;
+    }, [burnerManager, options]);
 
-    // get burner from address
-    const get = useCallback((address: string) => {
-        let storage = Storage.get("burners") || {};
-        if (!storage[address]) {
-            throw new Error("burner not found");
-        }
-
-        return new Account(provider, address, storage[address].privateKey);
-
-    }, [masterAccount]);
-
-    // create burner
-    const create = useCallback(async () => {
-        setIsDeploying(true);
-        const privateKey = stark.randomAddress();
-        const publicKey = ec.starkCurve.getStarkKey(privateKey);
-        const address = hash.calculateContractAddressFromHash(
-            publicKey,
-            accountClassHash,
-            CallData.compile({ publicKey }),
-            0,
-        );
-
-        if (!masterAccount) {
-            throw new Error("wallet account not found");
-        }
-
-        try {
-            await prefundAccount(address, masterAccount);
-        } catch (e) {
-            setIsDeploying(false);
-        }
-
-        const accountOptions = {
-            classHash: accountClassHash,
-            constructorCalldata: CallData.compile({ publicKey }),
-            addressSalt: publicKey,
-        }
-
-        // deploy burner
-        const burner = new Account(provider, address, privateKey);
-
-        // const accountDeployFee = await account?.estimateAccountDeployFee(accountOptions)
-        const nonce = await account?.getNonce()
-
-        const { transaction_hash: deployTx } = await burner.deployAccount(accountOptions,
-            {
-                nonce,
-                maxFee: 0 // TODO: update
-            }
-        );
-
-        console.log("Deploying:", deployTx)
-
-        // save burner
-        let storage = Storage.get("burners") || {};
-        for (let address in storage) {
-            storage[address].active = false;
-        }
-
-        storage[address] = {
-            privateKey,
-            publicKey,
-            deployTx,
-            active: true,
-        };
-
-        setAccount(burner);
-        setIsDeploying(false);
-        Storage.set("burners", storage);
-        console.log("Burner Created: ", address);
-
-        return burner;
-    }, [masterAccount]);
-
-    useEffect(() => {
-        const burnerAccounts = [];
+    /**
+     * Generates a list of BurnerConnector instances for each burner account. These can be added to Starknet React.
+     *
+     * @returns An array of BurnerConnector instances.
+     */
+    const listConnectors = useCallback((): BurnerConnector[] => {
+        // Retrieve all the burners.
         const burners = list();
 
-        for (const burner of burners) {
-            const arcadeConnector = new BurnerConnector({
+        // Map each burner to its respective BurnerConnector instance.
+        return burners.map(burner => {
+            return new BurnerConnector({
                 options: {
                     id: burner.address,
                 }
             }, get(burner.address));
+        });
+    }, [options, burnerManager.isDeploying]);
 
-            burnerAccounts.push(arcadeConnector);
-        }
-
-        setburnerAccounts(burnerAccounts);
-
-        console.log(burnerAccounts)
-    }, [account, isDeploying]);
-
+    // Expose methods and properties for the consumers of this hook.
     return {
         get,
         list,
         select,
         create,
+        listConnectors,
         account,
-        isDeploying,
-        burnerAccounts
+        isDeploying: burnerManager.isDeploying,
     };
-};
-
-const prefundAccount = async (address: string, account: AccountInterface) => {
-    try {
-
-        const transferOptions = {
-            contractAddress: '0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7',
-            entrypoint: "transfer",
-            calldata: CallData.compile([address, PREFUND_AMOUNT, "0x0"]),
-        }
-
-        const nonce = await account.getNonce()
-
-        const { transaction_hash } = await account.execute(transferOptions,
-            undefined,
-            {
-                nonce,
-                maxFee: 0
-            }
-        );
-
-        console.log("Prefund Account hash:", transaction_hash);
-
-        const result = await account.waitForTransaction(transaction_hash, {
-            retryInterval: 1000,
-            successStates: [TransactionStatus.ACCEPTED_ON_L2],
-        });
-
-        if (!result) {
-            throw new Error("Transaction did not complete successfully.");
-        }
-
-        return result;
-    } catch (error) {
-        console.error(error);
-        throw error;
-    }
 };
