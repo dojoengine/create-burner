@@ -102,7 +102,12 @@ const activeAccount = manager.getActiveAccount();
 - **BurnerManager**: A class for vanilla JS that offers methods to manage burner accounts.
     - `init()`: Initializes the manager.
     - `getActiveAccount()`: Retrieves the active burner account.
-    - ... (Other methods and their descriptions)
+    - `get(address: string)`: Get a burner account based on its address.
+    - `list()`: List all burners.
+    - `select(address: string)`: Set a burner as the active account.
+    - `create()`: Create a new burner.
+    - `account`: The active burner account.
+    - `isDeploying`: A boolean that indicates whether a burner is being deployed.
 
 ## Contribute
 
