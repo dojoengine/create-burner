@@ -7,7 +7,7 @@ import { BurnerConnector } from "..";
 /**
  * Interface for the options required by the useBurner hook.
  */
-interface UseBurnerOptions {
+export interface UseBurnerOptions {
     /** 
      * The Master account is what prefunds the Burner. 
      * Optional. Pass in an account that has funds if available.
