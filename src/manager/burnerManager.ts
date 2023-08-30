@@ -4,18 +4,20 @@ import { Burner, BurnerManagerOptions, BurnerStorage } from "../types";
 import { prefundAccount } from "./prefundAccount";
 
 export class BurnerManager {
-    private masterAccount?: AccountInterface | Account;
-    private accountClassHash: string;
-    private provider: RpcProvider;
+    public masterAccount?: AccountInterface | Account;
+    public accountClassHash: string;
+    public provider: RpcProvider;
 
-    private account: Account | null = null;
+    public account: Account | null = null;
     public isDeploying: boolean = false;
     public burnerAccounts: Burner[] = [];
 
     constructor(options: BurnerManagerOptions) {
         this.masterAccount = options.masterAccount;
         this.accountClassHash = options.accountClassHash;
-        this.provider = options.provider;
+        this.provider = new RpcProvider({
+            nodeUrl: "http://localhost:5050" || options.nodeUrl,
+        });;
     }
 
     private getBurnerStorage(): BurnerStorage {

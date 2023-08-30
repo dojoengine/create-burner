@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { BurnerManager } from "../manager/burnerManager";
-import { Account, AccountInterface, RpcProvider } from "starknet";
+import { Account, AccountInterface } from "starknet";
 import { Burner } from "../types";
 import { BurnerConnector } from "..";
 
@@ -21,9 +21,9 @@ export interface UseBurnerOptions {
     accountClassHash: string;
 
     /** 
-     * The provider you want to use to deploy the burner.
+     * Node url
      */
-    provider: RpcProvider;
+    nodeUrl?: string;
 }
 
 /**
