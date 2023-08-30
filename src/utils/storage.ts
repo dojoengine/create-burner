@@ -1,62 +1,72 @@
 import Cookies from "js-cookie";
 
-const isSafari =
-  typeof navigator !== "undefined" &&
-  /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const hasLocalStorageSupport = (): boolean => {
+  try {
+    const testKey = "__test__";
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(testKey, testKey);
+      window.localStorage.removeItem(testKey);
+      return true;
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
+};
+
+const isLocalStorage = hasLocalStorageSupport();
+
+const safeParse = (data: string): any => {
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    console.error("Error parsing JSON data:", data);
+    return null;
+  }
+};
 
 const Storage = {
   keys: (): string[] => {
-    if (!isSafari && typeof window != "undefined") {
+    if (isLocalStorage) {
       return Object.keys(window.localStorage);
     }
-
     return Object.keys(Cookies.get());
   },
+
   get: (key: string): any => {
-    if (!isSafari && typeof window != "undefined") {
-      const value = window.localStorage.getItem(key);
-      if (!value) {
-        return null;
-      }
-
-      return JSON.parse(value);
+    if (isLocalStorage) {
+      return safeParse(window.localStorage.getItem(key) || "");
     }
-
-    const existing = Cookies.get(key);
-
-    if (typeof existing === "undefined") {
-      return undefined;
-    }
-
-    return JSON.parse(existing);
+    return safeParse(Cookies.get(key) || "");
   },
-  set: (key: string, value: any) => {
-    if (!isSafari && typeof window != "undefined") {
-      window.localStorage.setItem(key, JSON.stringify(value));
-      return;
-    }
 
-    Cookies.set(key, JSON.stringify(value), {
-      secure: true,
-      sameSite: "strict",
-    });
+  set: (key: string, value: any): void => {
+    const data = JSON.stringify(value);
+    if (isLocalStorage) {
+      window.localStorage.setItem(key, data);
+    } else {
+      Cookies.set(key, data, {
+        secure: true,
+        sameSite: "strict",
+      });
+    }
   },
-  remove: (key: string) => {
-    if (!isSafari && typeof window != "undefined") {
+
+  remove: (key: string): void => {
+    if (isLocalStorage) {
       window.localStorage.removeItem(key);
-      return;
+    } else {
+      Cookies.remove(key);
     }
-
-    Cookies.remove(key);
   },
-  clear: () => {
-    if (!isSafari && typeof window != "undefined") {
-      window.localStorage.clear();
-      return;
-    }
 
-    const cookies = Cookies.get();
-    Object.keys(cookies).forEach((key) => Cookies.remove(key));
+  clear: (): void => {
+    if (isLocalStorage) {
+      window.localStorage.clear();
+    } else {
+      const cookies = Cookies.get();
+      Object.keys(cookies).forEach((key) => Cookies.remove(key));
+    }
   },
 };
 

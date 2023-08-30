@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { BurnerManager } from "../manager/burnerManager";
 import { Account, AccountInterface, RpcProvider } from "starknet";
 import { Burner } from "../types";
@@ -35,7 +35,7 @@ export interface UseBurnerOptions {
  */
 export const useBurner = (options: UseBurnerOptions) => {
     // Initialize the BurnerManager with the provided options.
-    const [burnerManager] = useState(new BurnerManager(options));
+    const burnerManager = useMemo(() => new BurnerManager(options), [options]);
     // State to manage the current active account.
     const [account, setAccount] = useState<Account | null>(null);
 
