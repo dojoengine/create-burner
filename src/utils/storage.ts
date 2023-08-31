@@ -18,9 +18,10 @@ const isLocalStorage = hasLocalStorageSupport();
 
 const safeParse = (data: string): any => {
   try {
+    if (data === "") return null;
     return JSON.parse(data);
   } catch (e) {
-    console.error("Error parsing JSON data:", data);
+    console.error("Error parsing JSON data:", e, "Data:", data);
     return null;
   }
 };
