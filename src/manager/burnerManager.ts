@@ -16,7 +16,7 @@ export class BurnerManager {
         this.masterAccount = options.masterAccount;
         this.accountClassHash = options.accountClassHash;
         this.provider = new RpcProvider({
-            nodeUrl: "http://localhost:5050" || options.nodeUrl,
+            nodeUrl: options.nodeUrl || "http://localhost:5050",
         });;
     }
 
